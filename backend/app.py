@@ -29,9 +29,21 @@ notifications_db = [
     }
 ]
 
-# Notifications API - List
-@app.route("/api/notifications", methods=["GET"])
-def get_notifications():
+# Notifications API - List & Create
+@app.route("/api/notifications", methods=["GET", "POST"])
+def manage_notifications():
+    if request.method == "POST":
+        data = request.json
+        new_notif = {
+            "id": str(len(notifications_db) + 1),
+            "type": data.get("type", "update"),
+            "title": data.get("title", "New Notification"),
+            "message": data.get("message", ""),
+            "time": "Just now",
+            "read": False
+        }
+        notifications_db.insert(0, new_notif) # Add to top
+        return jsonify({"status": "success", "notification": new_notif}), 201
     return jsonify(notifications_db)
 
 # Notifications API - Mark as Read

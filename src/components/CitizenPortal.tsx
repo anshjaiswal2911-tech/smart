@@ -42,7 +42,7 @@ export function CitizenPortal() {
     setShowSlots(true);
   };
 
-  const bookAppointment = (slot: TimeSlot) => {
+  const bookAppointment = async (slot: TimeSlot) => {
     const service = MOCK_SERVICES.find(s => s.id === selectedService);
     if (!service) return;
 
@@ -63,19 +63,36 @@ export function CitizenPortal() {
     const appointments = getStoredAppointments();
     appointments.push(newAppointment);
     saveAppointments(appointments);
-    
+
+    // Create notification in backend
+    try {
+      await fetch('http://localhost:5001/api/notifications', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          type: 'success',
+          title: 'Booking Confirmed',
+          message: `Appointment for ${service.name} booked at ${slot.time} (Token: ${newAppointment.tokenNumber})`,
+        }),
+      });
+    } catch (err) {
+      console.error('Failed to create notification:', err);
+    }
+
     setLastBookedAppointment(newAppointment);
     setShowBookingSuccess(true);
     setShowSlots(false);
     loadMyAppointments();
-    
+
     // Auto-hide success message
     setTimeout(() => setShowBookingSuccess(false), 5000);
   };
 
   const cancelAppointment = (id: string) => {
     const appointments = getStoredAppointments();
-    const updated = appointments.map(apt => 
+    const updated = appointments.map(apt =>
       apt.id === id ? { ...apt, status: 'cancelled' as const } : apt
     );
     saveAppointments(updated);
@@ -93,33 +110,30 @@ export function CitizenPortal() {
       <div className="flex gap-2 mb-6 bg-gray-900 border border-gray-800 rounded-xl p-2">
         <button
           onClick={() => setActiveView('book')}
-          className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
-            activeView === 'book'
+          className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${activeView === 'book'
               ? 'bg-blue-600 text-white'
               : 'text-gray-400 hover:text-white hover:bg-gray-800'
-          }`}
+            }`}
         >
           <Calendar className="w-4 h-4" />
           Book Appointment
         </button>
         <button
           onClick={() => setActiveView('notifications')}
-          className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
-            activeView === 'notifications'
+          className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${activeView === 'notifications'
               ? 'bg-blue-600 text-white'
               : 'text-gray-400 hover:text-white hover:bg-gray-800'
-          }`}
+            }`}
         >
           <Bell className="w-4 h-4" />
           Notifications
         </button>
         <button
           onClick={() => setActiveView('locations')}
-          className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${
-            activeView === 'locations'
+          className={`flex-1 px-4 py-3 rounded-lg font-medium transition-all flex items-center justify-center gap-2 ${activeView === 'locations'
               ? 'bg-blue-600 text-white'
               : 'text-gray-400 hover:text-white hover:bg-gray-800'
-          }`}
+            }`}
         >
           <MapPin className="w-4 h-4" />
           Nearby Centers
@@ -201,22 +215,21 @@ export function CitizenPortal() {
                       <Sparkles className="w-5 h-5 text-yellow-400" />
                       <h3 className="font-bold text-white">AI-Recommended Time Slots</h3>
                     </div>
-                    
+
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                       {slots.slice(0, 6).map((slot) => (
                         <button
                           key={slot.id}
                           onClick={() => bookAppointment(slot)}
                           disabled={slot.booked >= slot.capacity}
-                          className={`p-4 rounded-lg border text-left transition-all ${
-                            slot.booked >= slot.capacity
+                          className={`p-4 rounded-lg border text-left transition-all ${slot.booked >= slot.capacity
                               ? 'bg-gray-800 border-gray-700 opacity-50 cursor-not-allowed'
                               : slot.aiScore >= 80
-                              ? 'bg-green-900/20 border-green-500 hover:bg-green-900/30'
-                              : slot.aiScore >= 60
-                              ? 'bg-yellow-900/20 border-yellow-500 hover:bg-yellow-900/30'
-                              : 'bg-gray-800 border-gray-700 hover:bg-gray-700'
-                          }`}
+                                ? 'bg-green-900/20 border-green-500 hover:bg-green-900/30'
+                                : slot.aiScore >= 60
+                                  ? 'bg-yellow-900/20 border-yellow-500 hover:bg-yellow-900/30'
+                                  : 'bg-gray-800 border-gray-700 hover:bg-gray-700'
+                            }`}
                         >
                           <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-2">
@@ -230,14 +243,14 @@ export function CitizenPortal() {
                               </span>
                             )}
                           </div>
-                          
+
                           <div className="space-y-1 text-xs text-gray-400 mb-2">
                             <div className="flex items-center justify-between">
                               <span>Congestion:</span>
                               <span className={
                                 slot.congestion === 'Low' ? 'text-green-400' :
-                                slot.congestion === 'Medium' ? 'text-yellow-400' :
-                                'text-red-400'
+                                  slot.congestion === 'Medium' ? 'text-yellow-400' :
+                                    'text-red-400'
                               }>
                                 {slot.congestion}
                               </span>
@@ -251,11 +264,11 @@ export function CitizenPortal() {
                               <span className="text-white">~{slot.estimatedWait} min</span>
                             </div>
                           </div>
-                          
+
                           <div className="text-xs text-gray-500 border-t border-gray-700 pt-2">
                             {AIEngine.getSlotExplanation(slot)}
                           </div>
-                          
+
                           {slot.booked >= slot.capacity ? (
                             <div className="mt-2 text-xs text-red-400 font-medium">Fully Booked</div>
                           ) : (
@@ -276,12 +289,12 @@ export function CitizenPortal() {
                   </div>
                   <h2 className="text-xl font-bold text-white">Live Queue Status</h2>
                 </div>
-                
+
                 <div className="space-y-3">
                   {MOCK_SERVICES.slice(0, 4).map(service => {
                     const queueLength = Math.floor(Math.random() * 12) + 3;
                     const avgWait = queueLength * service.averageTime;
-                    
+
                     return (
                       <div key={service.id} className="bg-gray-800 border border-gray-700 rounded-lg p-4">
                         <div className="flex items-center justify-between mb-2">
@@ -307,7 +320,7 @@ export function CitizenPortal() {
           )}
 
           {activeView === 'notifications' && <NotificationsPanel />}
-          
+
           {activeView === 'locations' && <NearbyLocations />}
         </div>
 
@@ -315,7 +328,7 @@ export function CitizenPortal() {
         <div className="space-y-6">
           <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 sticky top-24">
             <h2 className="text-xl font-bold text-white mb-6">My Appointments</h2>
-            
+
             {myAppointments.length === 0 ? (
               <div className="text-center py-8">
                 <AlertCircle className="w-12 h-12 text-gray-600 mx-auto mb-3" />
@@ -336,7 +349,7 @@ export function CitizenPortal() {
                         </span>
                       )}
                     </div>
-                    
+
                     <div className="space-y-1 text-sm text-gray-400 mb-3">
                       <div className="flex items-center gap-2">
                         <Calendar className="w-4 h-4" />
@@ -347,7 +360,7 @@ export function CitizenPortal() {
                         <span>{apt.timeSlot}</span>
                       </div>
                     </div>
-                    
+
                     {apt.status === 'scheduled' && (
                       <button
                         onClick={() => cancelAppointment(apt.id)}
@@ -375,11 +388,10 @@ export function CitizenPortal() {
                   <div key={apt.id} className="bg-gray-800 border border-gray-700 rounded-lg p-3">
                     <div className="text-sm font-medium text-gray-300 mb-1">{apt.serviceName}</div>
                     <div className="text-xs text-gray-500">{formatDate(apt.date)}</div>
-                    <span className={`inline-block mt-2 px-2 py-0.5 rounded-full text-xs ${
-                      apt.status === 'completed' 
-                        ? 'bg-green-500/20 text-green-400' 
+                    <span className={`inline-block mt-2 px-2 py-0.5 rounded-full text-xs ${apt.status === 'completed'
+                        ? 'bg-green-500/20 text-green-400'
                         : 'bg-red-500/20 text-red-400'
-                    }`}>
+                      }`}>
                       {apt.status === 'completed' ? 'Completed' : 'Cancelled'}
                     </span>
                   </div>
